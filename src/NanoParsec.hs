@@ -1,7 +1,7 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module NanoParsec (Parser(..), runParser, item, failure, combine, option, satisfy, oneOf, chainl, chainl1, char, natural, string, token,
-                   reserved, spaces, digit, integer, parens) where
+                   reserved, spaces, digit, integer, parens, braces) where
 
 import Data.Char
 import Control.Monad
@@ -105,14 +105,14 @@ reserved :: String -> Parser String
 reserved s = token (string s)
 
 spaces :: Parser String
-spaces = many $ oneOf " \n\r"
+spaces = many $ satisfy isSpace
 
 digit :: Parser Char
 digit = satisfy isDigit
 
 integer :: (Integral a, Read a) => Parser a
 integer = do
-  sign <- string "-" <|> return []
+  sign <- string "-" <|> return ""
   digits <- some $ satisfy isDigit
   return $ read (sign ++ digits)
 
@@ -121,4 +121,11 @@ parens p = do
   char '('
   x <- p
   char ')'
+  return x
+
+braces :: Parser a -> Parser a
+braces p = do
+  char '['
+  x <- p
+  char ']'
   return x
