@@ -23,6 +23,7 @@ expr = number <|>
        lambda <|> 
        set <|> 
        begin <|> 
+       define <|>
        appExp <|> 
        symbol
        --return Void
@@ -89,17 +90,7 @@ letRecParse = schemeList $ do
 
   body<- token expr
 
-  return $ Let (zip syms $ repeat Void) $ Let (zip syms' vals) $ Begin $ zipWith Set syms (map Symbol syms') ++ [body]
-
-{--
-Let (zip syms $ repeat Void) $ 
-  Let (zip syms' vals) $ 
-  Begin $ zipWith Set syms (map Symbol syms') ++ [body]
-  where
-    zeroWidth = '\8203'
-    syms = map fst bindings
-    vals = map snd bindings
-    syms' = map (zeroWidth:) syms --}
+  return $ Let (zip syms $ repeat (Number 0)) $ Let (zip syms' vals) $ Begin $ zipWith Set syms (map Symbol syms') ++ [body]
 
 --parse a lambda expr
 lambda :: Parser Expr
@@ -121,6 +112,13 @@ begin = schemeList $ do
   reserved "begin"
   exprs <- many $ token expr
   return $ Begin exprs
+
+define :: Parser Expr
+define = schemeList $ do
+  reserved "define"
+  sym <- token symbolString
+  expr <- token expr
+  return $ Define sym expr
 
 -- parse an application
 appExp :: Parser Expr
