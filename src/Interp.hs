@@ -13,19 +13,23 @@ import GHC.Exts
 applyProc :: Result -> [Result] -> IO Result
 applyProc (C syms body env) args 
   | length syms /= length args = error "Wrong Number of Arguments"
-  | otherwise = 
-    let bindings = zip syms <$> mapM newIORef args in
-        eval (liftA2 extend bindings $ pure env) body
-applyProc (P x) args = return $ case x of
-  "+" -> N $ sum nums
-  "-" -> N $ head nums - (sum (tail nums))
-  "*" -> N $ foldr (*) 1 nums
-  "/" -> N $ foldr (/) 1 nums where (/) = div
-  "list" -> L args
-  "car" -> car args
-  "cdr" -> cdr args
-  "cons" -> cons args
-  "eq?" -> eq args
+  | otherwise = do
+    bindings <- zip syms <$> mapM newIORef args 
+    eval (extend bindings env) body
+applyProc (P x) args = case x of
+  "+" -> return $ N $ sum nums
+  "-" -> return $ N $ head nums - (sum (tail nums))
+  "*" -> return $ N $ foldr (*) 1 nums
+  "/" -> return $ N $ foldr (/) 1 nums where (/) = div
+  "list"  -> return $ L args
+  "car"   -> return $ car args
+  "cdr"   -> return $ cdr args
+  "cons"  -> return $ cons args
+  "eq?"   -> return $ eq args
+  "null?" -> return $ null' args
+  "atom?" -> return $ atom args
+  "print" -> print' args >> return Void
+  "apply" -> apply args
 
   where
     assertNumber (N n) = n
@@ -45,14 +49,27 @@ applyProc (P x) args = return $ case x of
     eq [x, y] = B $ x == y
     eq _ = error "eq? error"
 
+    null' [L x] = B $ null x
+    null' [_]   = B False
+    null' _     = error "null? error"
+
+    atom [L _] = B False
+    atom [_]   = B True
+    atom _     = error "atom? error"
+
+    print' [x] = print x
+    print' _   = error "print error"
+
+    apply [o,L as] = applyProc o as
+    apply _        = error "apply error"
+
 applyProc x _ = error $ show x
 
 -- Evaluater Function
-eval :: IO Env -> Expr -> IO Result
+eval :: Env -> Expr -> IO Result
 
 -- evaulate a symbol
-eval e (Symbol s) = do
-  env <- e
+eval env (Symbol s) = do
   readIORef $ get s env
 
 -- evaluate an if statement
@@ -68,15 +85,15 @@ eval env (Let bindings body) = do
   bindList <- forM bindings $ \(sym, val) -> do
     val' <- newIORef =<< eval env val
     return (sym, val')
-  eval (extend bindList <$> env) body
+  eval (extend bindList env) body
 
 -- evaluate a lambda expression
-eval env (Lambda args body) = env >>= return . C args body
+eval env (Lambda args body) = return $ C args body env
 
 -- evaluate a set! statement
 eval env (Set sym val) = do
   val' <- eval env val
-  binding <- get sym <$> env
+  let binding = get sym env
   writeIORef binding val'
   return Void
 
@@ -92,9 +109,9 @@ eval env (Define sym val) = do
   valref <- newIORef val'
   def <- newIORef $ N 0
 
-  env' <- ([(sym, def), (zeroWidth:sym, valref)] ++) <$> env
-  eval (pure env') $ Set sym val
-  return $ D $ (head env') : (tail (tail env'))
+  let env'@(e:_:es) = (sym, def) :  (zeroWidth:sym, valref) : env
+  eval env' $ Set sym val
+  return $ D $ (e:es)
   where
     zeroWidth = '\8203'
 
@@ -106,5 +123,16 @@ eval env (AppExp (o:a)) = do
 
 eval env (AppExp []) = error "No procedure"
 
+-- numbers and boolean evaluate to themselves
 eval env (Number n) = return $ N n
 eval env (Bool b) = return $ B b
+
+-- evaluate a quoted statement
+eval env (Quote ex) = return $ evalQuote ex
+
+-- how to evaluate a quoted statement (certain types of expressions will not appear as quoted statements)
+evalQuote :: Expr -> Result
+evalQuote (Number n)  = N n
+evalQuote (Bool b)    = B b
+evalQuote (Symbol s)  = S s
+evalQuote (AppExp xs) = L $ map evalQuote xs

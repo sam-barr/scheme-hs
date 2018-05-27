@@ -27,7 +27,7 @@ instance Eq Result where
 instance Show Result where
   show (N n) = show n
   show (B b) = if b then "#t" else "#f"
-  show (S s) = s
+  show (S s) = '`':s
   show (P p) = "<procedure:" ++ p ++ ">"
   show (L l) = "(" ++ intercalate " " (map show l) ++ ")"
   show (C _ _ _) = "<closure>"
@@ -48,6 +48,9 @@ get sym env = case lookup sym env of
 
 -- Initial Environment
 initEnv :: IO Env
-initEnv = sequence $ fmap sequence $ [("null", newIORef $ L [])] ++ map f ["+", "-", "*", "/", "list", "cons", "cdr", "car", "eq?"]
+initEnv = sequence $ fmap sequence $ [("null", newIORef $ L [])] ++ map f primitives
   where
     f = (,) <*> (newIORef . P)
+
+primitives :: [String]
+primitives = ["+", "-", "*", "/", "list", "cons", "cdr", "car", "eq?", "null?", "atom?", "print", "apply"]

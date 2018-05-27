@@ -12,4 +12,5 @@ data Expr
   | Begin [Expr]
   | Define String Expr
   | AppExp [Expr]
+  | Quote Expr
   deriving (Eq, Show)

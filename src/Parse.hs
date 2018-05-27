@@ -8,8 +8,6 @@ import Control.Monad
 import Expr
 import NanoParsec
 
-x = listOf expr
-
 schemeList :: Parser a -> Parser a
 schemeList p = parens p <|> braces p
 
@@ -25,8 +23,8 @@ expr = number <|>
        begin <|> 
        define <|>
        appExp <|> 
+       quote <|>
        symbol
-       --return Void
 
 file :: Parser [Expr]
 file = many $ token expr
@@ -49,7 +47,7 @@ symbol = Symbol <$> symbolString
 
 -- parse a symbol, but just return the string
 symbolString :: Parser String
-symbolString = some $ satisfy (\c -> not (isSpace c || c `elem` "()[]"))
+symbolString = some $ satisfy (\c -> not (isSpace c || c `elem` "()[]`"))
 
 -- parse an if expression
 ifParse :: Parser Expr
@@ -100,6 +98,7 @@ lambda = schemeList $ do
   body <- token expr
   return $ Lambda args body
 
+-- parse a set statement
 set :: Parser Expr
 set = schemeList $ do
   reserved "set!"
@@ -107,19 +106,31 @@ set = schemeList $ do
   val <- token expr
   return $ Set sym val
 
+-- parse a begin statement
 begin :: Parser Expr
 begin = schemeList $ do
   reserved "begin"
   exprs <- many $ token expr
   return $ Begin exprs
 
+-- parse a definition
 define :: Parser Expr
 define = schemeList $ do
   reserved "define"
   sym <- token symbolString
-  expr <- token expr
-  return $ Define sym expr
+  val <- token expr
+  return $ Define sym val
 
 -- parse an application
 appExp :: Parser Expr
 appExp = AppExp <$> listOf expr
+
+-- parse a quoted expression
+quote :: Parser Expr
+quote = do
+  char '`'
+  quote <- quoteParse
+  return $ Quote quote
+
+quoteParse :: Parser Expr
+quoteParse = number <|> bool <|> symbol <|> (AppExp <$> listOf quoteParse)
