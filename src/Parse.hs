@@ -132,4 +132,4 @@ quote = do
   quote <- quote'
   return $ Quote quote
   where
-    quote' = number <|> bool <|> symbol <|> (AppExp <$> listOf quoteParse)
+    quote' = number <|> bool <|> symbol <|> (AppExp <$> listOf quote')
