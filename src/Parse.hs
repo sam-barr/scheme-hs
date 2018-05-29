@@ -129,8 +129,7 @@ appExp = AppExp <$> listOf expr
 quote :: Parser Expr
 quote = do
   char '`'
-  quote <- quoteParse
+  quote <- quote'
   return $ Quote quote
-
-quoteParse :: Parser Expr
-quoteParse = number <|> bool <|> symbol <|> (AppExp <$> listOf quoteParse)
+  where
+    quote' = number <|> bool <|> symbol <|> (AppExp <$> listOf quoteParse)

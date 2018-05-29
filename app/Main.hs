@@ -4,6 +4,7 @@ import Control.Monad
 import System.IO
 import System.Exit
 import System.Environment
+import Data.Maybe
 
 import Parse
 import Interp
@@ -15,12 +16,8 @@ import Result
 main :: IO ()
 main = do
   args <- getArgs
-  if null args then do
-    init <- initEnv
-    repl init
-  else do
-    init <- loadFile $ head args
-    repl init
+  init <- loadFile $ listToMaybe args
+  repl init
 
 -- input - evaluate loop
 repl :: Env -> IO ()
@@ -52,8 +49,9 @@ prompt = do
     getLine
 
 -- load a file
-loadFile :: FilePath -> IO Env
-loadFile filepath = do
-  contents <- readFile filepath
+loadFile :: Maybe FilePath -> IO Env
+loadFile Nothing   = initEnv
+loadFile (Just fp) = do
+  contents <- readFile fp
   init <- initEnv
   foldM interpret init $ runParser file contents   

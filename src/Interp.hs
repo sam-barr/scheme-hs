@@ -18,7 +18,7 @@ applyProc (C syms body env) args
     eval (extend bindings env) body
 applyProc (P x) args = case x of
   "+" -> return $ N $ sum nums
-  "-" -> return $ N $ head nums - (sum (tail nums))
+  "-" -> return $ sub nums
   "*" -> return $ N $ foldr (*) 1 nums
   "/" -> return $ N $ foldr (/) 1 nums where (/) = div
   "list"  -> return $ L args
@@ -36,6 +36,9 @@ applyProc (P x) args = case x of
     assertNumber _ = error "Expected a Number"
 
     nums = if null args then error "more args pls" else map assertNumber args
+
+    sub [n]    = N (-n)
+    sub (x:xs) = N $ x - sum xs
     
     car [(L (x:_))] = x
     car _ = error "car error"
