@@ -10,6 +10,7 @@ import Control.Applicative
 import Data.IORef
 import GHC.Exts
 
+-- IORef functions lifted to MonadIO
 newRef :: MonadIO m => a -> m (IORef a)
 newRef = liftIO . newIORef
 
@@ -19,13 +20,17 @@ readRef = liftIO . readIORef
 writeRef :: MonadIO m => IORef a -> a -> m ()
 writeRef ref new = liftIO $ writeIORef ref new
 
+-- perform function application
 applyProc :: Result -> [Result] -> IO Result
+
+-- apply a lambda expression
 applyProc (C syms body env) args 
   | length syms /= length args = error "Wrong Number of Arguments"
   | otherwise = do
     bindings <- zip syms <$> mapM newRef args 
     runReaderT (eval body) (extend bindings env)
 
+-- apply a primitive procedure
 applyProc (P x) args = case x of
   "+" -> return $ N $ sum nums
   "-" -> return $ sub nums
@@ -98,7 +103,7 @@ eval (If b true false) = do
 eval (Let bindings body) = do
   bindList <- forM bindings $ \(sym, val) -> do
     evaluated <- eval val
-    ref <- liftIO $ newIORef evaluated
+    ref <- newRef evaluated
     return (sym, ref)
   local (extend bindList) $ eval body
 
