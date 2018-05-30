@@ -5,17 +5,27 @@ import Parse
 import Result
 
 import Control.Monad
+import Control.Monad.Reader
 import Control.Applicative
 import Data.IORef
 import GHC.Exts
 
--- apply a procedure to its arguments
+newRef :: MonadIO m => a -> m (IORef a)
+newRef = liftIO . newIORef
+
+readRef :: MonadIO m => IORef a -> m a
+readRef = liftIO . readIORef
+
+writeRef :: MonadIO m => IORef a -> a -> m ()
+writeRef ref new = liftIO $ writeIORef ref new
+
 applyProc :: Result -> [Result] -> IO Result
 applyProc (C syms body env) args 
   | length syms /= length args = error "Wrong Number of Arguments"
   | otherwise = do
-    bindings <- zip syms <$> mapM newIORef args 
-    eval (extend bindings env) body
+    bindings <- zip syms <$> mapM newRef args 
+    runReaderT (eval body) (extend bindings env)
+
 applyProc (P x) args = case x of
   "+" -> return $ N $ sum nums
   "-" -> return $ sub nums
@@ -69,69 +79,74 @@ applyProc (P x) args = case x of
 applyProc x _ = error $ show x
 
 -- Evaluater Function
-eval :: Env -> Expr -> IO Result
+eval :: Expr -> ReaderT Env IO Result
 
 -- evaulate a symbol
-eval env (Symbol s) = do
-  readIORef $ get s env
+eval (Symbol s) = do
+  env <- ask
+  readRef $ get s env
 
 -- evaluate an if statement
-eval env (If b true false) = do
-  bool <- eval env b
+eval (If b true false) = do
+  bool <- eval b
   case bool of
-    B True  -> eval env true
-    B False -> eval env false
+    B True  -> eval true
+    B False -> eval false
     _          -> error "Expected Boolean"
 
 -- evaluate a let statement
-eval env (Let bindings body) = do
+eval (Let bindings body) = do
   bindList <- forM bindings $ \(sym, val) -> do
-    val' <- newIORef =<< eval env val
-    return (sym, val')
-  eval (extend bindList env) body
+    evaluated <- eval val
+    ref <- liftIO $ newIORef evaluated
+    return (sym, ref)
+  local (extend bindList) $ eval body
 
 -- evaluate a lambda expression
-eval env (Lambda args body) = return $ C args body env
+eval (Lambda args body) = do
+  env <- ask 
+  return $ C args body env
 
 -- evaluate a set! statement
-eval env (Set sym val) = do
-  val' <- eval env val
+eval (Set sym val) = do
+  evaluated <- eval val
+  env <- ask
   let binding = get sym env
-  writeIORef binding val'
+  writeRef binding evaluated
   return Void
 
 -- evaluate begin statement
-eval env (Begin [])     = return Void
-eval env (Begin [x])    = eval env x
-eval env (Begin (x:xs)) = eval env x >> eval env (Begin xs)
+eval (Begin [])     = return Void
+eval (Begin [x])    = eval x
+eval (Begin (x:xs)) = eval x >> eval (Begin xs)
 
 -- evaluate a definition
--- this code is awful jesus christ
-eval env (Define sym val) = do
-  val' <- eval env val
-  valref <- newIORef val'
-  def <- newIORef $ N 0
-
-  let env'@(e:_:es) = (sym, def) :  (zeroWidth:sym, valref) : env
-  eval env' $ Set sym val
-  return $ D $ (e:es)
+eval (Define sym val) = do
+  evaluated <- eval val
+  ref <- newRef evaluated
+  defRef <- liftIO $ newIORef $ N 0
+  
+  env <- ask
+  let env'@(e:_:es) = (sym, defRef) :  (zeroWidth:sym, ref) : env
+  local (const env') (eval $ Set sym val)
+  return $ D (e:es)
   where
     zeroWidth = '\8203'
 
-  -- evaluate application expression
-eval env (AppExp (o:a)) = do
-  op <- eval env o
-  args <- mapM (eval env) a
-  applyProc op args
+-- evaluate application expression
+eval (AppExp (o:a)) = do
+  op <- eval o
+  args <- mapM eval a
+  liftIO $ applyProc op args
 
-eval env (AppExp []) = error "No procedure"
+eval (AppExp []) = error "No procedure"
 
 -- numbers and boolean evaluate to themselves
-eval env (Number n) = return $ N n
-eval env (Bool b) = return $ B b
+eval (Number n) = return $ N n
+eval (Bool b) = return $ B b
 
 -- evaluate a quoted statement
-eval env (Quote ex) = return $ evalQuote ex
+eval (Quote ex) = return $ evalQuote ex
 
 -- how to evaluate a quoted statement (certain types of expressions will not appear as quoted statements)
 evalQuote :: Expr -> Result

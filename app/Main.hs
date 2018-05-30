@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Monad
+import Control.Monad.Reader
 import System.IO
 import System.Exit
 import System.Environment
@@ -29,7 +30,7 @@ repl env = do
 -- interpret a piece of code in an environment, print the result and return the resulting environment
 interpret :: Env -> Expr -> IO Env
 interpret env code = do
-  res <- eval env code
+  res <- runReaderT (eval code) env
   printResult res
   case res of
     (D new) -> return new
