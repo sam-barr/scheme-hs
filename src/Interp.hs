@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Applicative
 import Data.IORef
-import GHC.Exts
+import System.IO.Unsafe
 
 -- IORef functions lifted to MonadIO
 newRef :: MonadIO m => a -> m (IORef a)
@@ -97,7 +97,7 @@ eval (If b true false) = do
   case bool of
     B True  -> eval true
     B False -> eval false
-    _          -> error "Expected Boolean"
+    _       -> error "Expected Boolean"
 
 -- evaluate a let statement
 eval (Let bindings body) = do
@@ -109,7 +109,7 @@ eval (Let bindings body) = do
 
 -- evaluate a lambda expression
 eval (Lambda args body) = do
-  env <- ask 
+  env <- ask
   return $ C args body env
 
 -- evaluate a set! statement
@@ -128,15 +128,15 @@ eval (Begin (x:xs)) = eval x >> eval (Begin xs)
 -- evaluate a definition
 eval (Define sym val) = do
   evaluated <- eval val
-  ref <- newRef evaluated
-  defRef <- liftIO $ newIORef $ N 0
-  
   env <- ask
-  let env'@(e:_:es) = (sym, defRef) :  (zeroWidth:sym, ref) : env
-  local (const env') (eval $ Set sym val)
-  return $ D (e:es)
+  ref <- liftIO $ fix evaluated 
+  return $ D ((sym, ref) : env)
   where
-    zeroWidth = '\8203'
+    fix c@(C args body env) = do
+      ref <- unsafeInterleaveIO $ fix c
+      newIORef $ C args body ((sym, ref) : env)
+
+    fix x = newRef x
 
 -- evaluate application expression
 eval (AppExp (o:a)) = do
