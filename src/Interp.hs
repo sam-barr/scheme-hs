@@ -136,7 +136,7 @@ eval (Define sym val) = do
       ref <- unsafeInterleaveIO $ fix c
       newIORef $ C args body ((sym, ref) : env)
 
-    fix x = newRef x
+    fix x = newIORef x
 
 -- evaluate application expression
 eval (AppExp (o:a)) = do

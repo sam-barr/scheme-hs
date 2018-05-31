@@ -20,7 +20,7 @@ main = do
   init <- loadFile $ listToMaybe args
   repl init
 
--- input - evaluate loop
+-- read - evaluate - print loop
 repl :: Env -> IO ()
 repl env = do
   str <- prompt
@@ -38,16 +38,15 @@ interpret env code = do
 
 -- print a result
 printResult :: Result -> IO ()
-printResult result = case show result of
-  ""  -> return ()
-  str -> putStrLn str
+printResult result = unless (null str) $ putStrLn str
+  where
+    str = show result
 
 -- prompt the user for input
 prompt :: IO String
-prompt = do
-    putStr "> "
-    hFlush stdout
-    getLine
+prompt = putStr "> " >>
+         hFlush stdout >>
+         getLine
 
 -- load a file
 loadFile :: Maybe FilePath -> IO Env
