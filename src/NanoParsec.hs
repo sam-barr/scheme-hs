@@ -1,7 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
 
-module NanoParsec (Parser(..), runParser, item, failure, combine, option, satisfy, oneOf, chainl, chainl1, char, natural, string, token,
-                   reserved, spaces, digit, integer, parens, braces) where
+module NanoParsec where
 
 import Data.Char
 import Control.Monad
@@ -116,16 +115,10 @@ integer = do
   digits <- some $ satisfy isDigit
   return $ read (sign ++ digits)
 
-parens :: Parser a -> Parser a
-parens p = do
-  char '('
+between :: [Char] -> [Char] -> Parser a -> Parser a
+between (left:ls) (right:rs) p = (do
+  char left
   x <- p
-  char ')'
-  return x
-
-braces :: Parser a -> Parser a
-braces p = do
-  char '['
-  x <- p
-  char ']'
-  return x
+  char right
+  return x) <|> between ls rs p
+between _ _ _ = failure

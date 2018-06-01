@@ -1,7 +1,6 @@
 module Parse where
 
 import Data.Char
-import Data.Fix
 import Control.Applicative
 import Control.Monad
 
@@ -9,13 +8,14 @@ import Expr
 import NanoParsec
 
 schemeList :: Parser a -> Parser a
-schemeList p = parens p <|> braces p
+schemeList = between "([" ")]"
 
 -- parse a scheme expression
 expr :: Parser Expr
 expr = number <|> 
        bool <|> 
        ifParse <|> 
+       cond <|>
        letParse <|> 
        letRecParse <|>
        lambda <|> 
@@ -57,6 +57,17 @@ ifParse = schemeList $ do
   ifTrue <- token expr
   ifFalse <- token expr
   return $ If bool ifTrue ifFalse
+
+cond :: Parser Expr
+cond = schemeList $ do
+  reserved "cond"
+  ifs <- many $ token condIfs
+  return $ Cond ifs
+  where
+    condIfs = schemeList $ do
+      bool <- token expr
+      ifBool <- token expr
+      return (bool, ifBool)
 
 -- parse a let binding
 letBinding :: Parser (String, Expr)

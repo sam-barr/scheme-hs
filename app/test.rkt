@@ -18,11 +18,17 @@
 
 (define filter
   (lambda (f lat)
-    (if (null? lat)
-      null
-      (if (f (car lat))
-        (cons (car lat) (filter f (cdr lat)))
-        (filter f (cdr lat))))))
+    (cond
+      [(null? lat) null]
+      [(f (car lat)) (cons (car lat) (filter f (cdr lat)))]
+      [else (filter f (cdr lat))])))
+
+(define rember-all
+  (lambda (a lat)
+    (cond
+      [(null? lat) null]
+      [(eq? a (car lat)) (rember-all a (cdr lat))]
+      [else (cons (car lat) (rember-all a (cdr lat)))])))
 
 (define add1
   (lambda (n)

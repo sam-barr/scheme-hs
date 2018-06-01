@@ -99,6 +99,14 @@ eval (If b true false) = do
     B False -> eval false
     _       -> error "Expected Boolean"
 
+eval (Cond []) = return Void
+eval (Cond ((b, expr):bs)) = do
+  bool <- eval b
+  case bool of
+    B True  -> eval expr
+    B False -> eval $ Cond bs
+    _       -> error "Expected Boolean"
+
 -- evaluate a let statement
 eval (Let bindings body) = do
   bindList <- forM bindings $ \(sym, val) -> do
@@ -148,7 +156,7 @@ eval (AppExp []) = error "No procedure"
 
 -- numbers and boolean evaluate to themselves
 eval (Number n) = return $ N n
-eval (Bool b) = return $ B b
+eval (Bool b)   = return $ B b
 
 -- evaluate a quoted statement
 eval (Quote ex) = return $ evalQuote ex

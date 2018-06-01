@@ -6,6 +6,7 @@ data Expr
   | Bool Bool
   | Symbol String
   | If Expr Expr Expr
+  | Cond [(Expr, Expr)]
   | Let [(String, Expr)] Expr
   | Lambda [String] Expr
   | Set String Expr

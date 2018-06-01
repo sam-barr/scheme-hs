@@ -48,7 +48,7 @@ get sym env = case lookup sym env of
 
 -- Initial Environment
 initEnv :: IO Env
-initEnv = sequence $ fmap sequence $ [("null", newIORef $ L [])] ++ map f primitives
+initEnv = sequence $ fmap sequence $ [("null", newIORef $ L []), ("else", newIORef $ B True)] ++ map f primitives
   where
     f = (,) <*> (newIORef . P)
 
