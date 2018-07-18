@@ -124,6 +124,11 @@ eval (Let bindings body) = do
     return (sym, ref)
   local (extend bindList) $ eval body
 
+eval (LetRec bindings body) = do
+    bindList <- forM bindings $ 
+        \(sym, val) -> eval val >>= fixRef sym
+    local (extend bindList) $ eval body
+
 -- evaluate a lambda expression
 eval (Lambda args body) = do
   env <- ask

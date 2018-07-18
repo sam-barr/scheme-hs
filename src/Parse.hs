@@ -87,17 +87,10 @@ letParse = schemeList $ do
 
 letRecParse :: Parser Expr
 letRecParse = schemeList $ do
-  reserved "letrec"
-
-  bindings <- token $ listOf letBinding
-  let zeroWidth = '\8203'
-  let syms = map fst bindings
-  let vals = map snd bindings
-  let syms' = map (zeroWidth:) syms
-
-  body<- token expr
-
-  return $ Let (zip syms $ repeat (Number 0)) $ Let (zip syms' vals) $ Begin $ zipWith Set syms (map Symbol syms') ++ [body]
+    reserved "letrec"
+    bindings <- token $ listOf letBinding
+    body <- token expr
+    return $ LetRec bindings body
 
 lambda :: Parser Expr
 lambda = schemeList (

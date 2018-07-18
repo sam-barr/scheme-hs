@@ -8,6 +8,7 @@ data Expr
   | If Expr Expr Expr
   | Cond [(Expr, Expr)]
   | Let [(String, Expr)] Expr
+  | LetRec [(String, Expr)] Expr
   | Lambda [String] Expr
   | Set String Expr
   | Begin [Expr]
