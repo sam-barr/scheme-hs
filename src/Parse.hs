@@ -49,14 +49,12 @@ symbol = Symbol <$> symbolString
 symbolString :: Parser String
 symbolString = some $ satisfy (\c -> not (isSpace c || c `elem` "()[]`"))
 
--- parse an if expression
 ifParse :: Parser Expr
-ifParse = schemeList $ do
-  reserved "if"
-  bool <- token expr
-  ifTrue <- token expr
-  ifFalse <- token expr
-  return $ If bool ifTrue ifFalse
+ifParse = schemeList (
+  reserved "if" >>
+  If <$> token expr -- bool
+     <*> token expr -- ifTrue
+     <*> token expr) -- ifFalse
 
 cond :: Parser Expr
 cond = schemeList $ do
@@ -67,7 +65,7 @@ cond = schemeList $ do
     condIfs = schemeList $ do
       bool <- token expr
       ifBool <- token expr
-      return (bool, ifBool)
+      return (bool, ifBool) 
 
 -- parse a let binding
 letBinding :: Parser (String, Expr)
@@ -101,21 +99,17 @@ letRecParse = schemeList $ do
 
   return $ Let (zip syms $ repeat (Number 0)) $ Let (zip syms' vals) $ Begin $ zipWith Set syms (map Symbol syms') ++ [body]
 
---parse a lambda expr
 lambda :: Parser Expr
-lambda = schemeList $ do
-  reserved "lambda"
-  args <- token (listOf symbolString)
-  body <- token expr
-  return $ Lambda args body
+lambda = schemeList (
+  reserved "lambda" >>
+  Lambda <$> token (listOf symbolString) -- args
+         <*> token expr) -- body
 
--- parse a set statement
 set :: Parser Expr
-set = schemeList $ do
-  reserved "set!"
-  sym <- token symbolString
-  val <- token expr
-  return $ Set sym val
+set = schemeList (
+  reserved "set!" >>
+  Set <$> token symbolString -- sym
+      <*> token expr) -- val
 
 -- parse a begin statement
 begin :: Parser Expr

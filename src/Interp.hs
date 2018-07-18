@@ -1,3 +1,6 @@
+{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TupleSections #-}
+
 module Interp where
 
 import Expr
@@ -83,6 +86,12 @@ applyProc (P x) args = case x of
 
 applyProc x _ = error $ show x
 
+fixRef :: String -> Result -> ReaderT a IO (String, IORef Result)
+fixRef sym (C args body env) = do
+    rec ref <- newRef $ C args body ((sym, ref) : env)
+    return (sym, ref)
+fixRef sym x = (sym, ) <$> newRef x
+
 -- Evaluater Function
 eval :: Expr -> ReaderT Env IO Result
 
@@ -135,16 +144,10 @@ eval (Begin (x:xs)) = eval x >> eval (Begin xs)
 
 -- evaluate a definition
 eval (Define sym val) = do
-  evaluated <- eval val
-  env <- ask
-  ref <- liftIO $ fix evaluated 
-  return $ D ((sym, ref) : env)
-  where
-    fix c@(C args body env) = do
-      ref <- unsafeInterleaveIO $ fix c
-      newIORef $ C args body ((sym, ref) : env)
-
-    fix x = newIORef x
+    evaluated <- eval val
+    env <- ask
+    binding <- fixRef sym evaluated
+    return $ D (binding : env)
 
 -- evaluate application expression
 eval (AppExp (o:a)) = do

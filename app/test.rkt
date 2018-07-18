@@ -33,3 +33,7 @@
 (define add1
   (lambda (n)
     (+ 1 n)))
+
+(define test
+  (lambda (n)
+    (if (eq? n 0) (begin (set! test 7) 0) (test (- n 1)))))
